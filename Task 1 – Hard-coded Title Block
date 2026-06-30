@@ -1,0 +1,48 @@
+Imports NXOpen
+Imports NXOpen.Annotations
+Imports NXOpen.Drawings
+Namespace NxTitleBlockEditor2
+ Public Class TitleBlockUpdater
+ ' Entry point method callable from journal loader
+ Public Shared Sub Main()
+ Dim theSession As Session = Session.GetSession()
+ Dim workPart As Part = theSession.Parts.Work
+ Dim displayPart As Part = theSession.Parts.Display
+ Dim markId1 As Session.UndoMarkId = theSession.SetUndoMark(Session.MarkVisibility.Visible,
+"Start")
+ Dim titleblocks1(0) As TitleBlock
+ Dim titleBlock1 As TitleBlock = CType(workPart.FindObject("HANDLE R-715"), TitleBlock)
+ titleblocks1(0) = titleBlock1
+ Dim editTitleBlockBuilder1 As EditTitleBlockBuilder =
+workPart.DraftingManager.TitleBlocks.CreateEditTitleBlockBuilder(titleblocks1)
+ Dim titleBlockCellBuilderList1 As TitleBlockCellBuilderList = editTitleBlockBuilder1.Cells
+ theSession.SetUndoMarkName(markId1, "Populate Title Block Dialog")
+Dim titleBlockCellBuilder1 As TitleBlockCellBuilder = CType(titleBlockCellBuilderList1.FindItem(0),
+TitleBlockCellBuilder)
+ Dim titleBlockCellBuilder2 As TitleBlockCellBuilder =
+CType(titleBlockCellBuilderList1.FindItem(1), TitleBlockCellBuilder)
+ Dim titleBlockCellBuilder3 As TitleBlockCellBuilder =
+CType(titleBlockCellBuilderList1.FindItem(2), TitleBlockCellBuilder)
+ Dim titleBlockCellBuilder4 As TitleBlockCellBuilder =
+CType(titleBlockCellBuilderList1.FindItem(3), TitleBlockCellBuilder)
+ ' First Issued
+ editTitleBlockBuilder1.SetCellValueForLabel("First Issued", "20.06.25")
+ titleBlockCellBuilder1.EditableText = ""
+ ' Drawn By
+ editTitleBlockBuilder1.SetCellValueForLabel("Drawn By", "Sourav Kumar")
+ titleBlockCellBuilder2.EditableText = " "
+ ' Checked By
+ editTitleBlockBuilder1.SetCellValueForLabel("Checked By", "Satish Singh Sir")
+ titleBlockCellBuilder3.EditableText = " "
+ 'Approved By
+ editTitleBlockBuilder1.SetCellValueForLabel("Approved By", "Satish Singh Sir")
+ titleBlockCellBuilder4.EditableText = " "
+ ' Commit
+ Dim nXObject1 As NXObject = editTitleBlockBuilder1.Commit()
+ Dim objects1() As NXObject = editTitleBlockBuilder1.GetCommittedObjects()
+ editTitleBlockBuilder1.Destroy()
+ theSession.ListingWindow.Open()
+ theSession.ListingWindow.WriteLine("✅ Title Block Populated Successfully.")
+ End Sub
+ End Class
+End Namespace
