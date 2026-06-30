@@ -1,0 +1,210 @@
+#Class Library code
+
+Imports NXOpen
+Imports NXOpen.UF
+Public Class TitleBlockM2
+ Public Shared Sub UpdateSignDateAndFields(
+ dr As String, drDate As String,
+ chkd As String, chkdDate As String,
+ appd As String, appdDate As String,
+ scale As String,
+ weldQuality As String,
+ genRoughness As String,
+ projectName As String,
+ material As String,
+ finWt As String,
+ replacesDrg As String,
+ refDrgNo As String)
+ Dim theSession As Session = Session.GetSession()
+ Dim ufSession As UFSession = UFSession.GetUFSession()
+ Dim workPart As Part = theSession.Parts.Work
+ Dim lw As ListingWindow = theSession.ListingWindow
+ lw.Open()
+ Dim tabNoteTag As Tag = Tag.Null
+ Dim tableIndex As Integer = 0
+ Do
+ ufSession.Obj.CycleObjsInPart(workPart.Tag, UFConstants.UF_tabular_note_type, tabNoteTag)
+ If tabNoteTag = Tag.Null Then Exit Do
+ lw.WriteLine($"🔍 Table index: {tableIndex}")
+ ' Identify table by first label text (Row 0, Col 0)
+Dim row0 As Tag = Tag.Null, col0 As Tag = Tag.Null, cell0 As Tag = Tag.Null
+ Dim labelText As String = ""
+ Try
+ ufSession.Tabnot.AskNthRow(tabNoteTag, 0, row0)
+ ufSession.Tabnot.AskNthColumn(tabNoteTag, 0, col0)
+ ufSession.Tabnot.AskCellAtRowCol(row0, col0, cell0)
+ ufSession.Tabnot.AskCellText(cell0, labelText)
+ labelText = labelText.Trim().ToLower()
+ Catch ex As Exception
+ lw.WriteLine("⚠️ Could not read first cell text: " & ex.Message)
+ End Try
+ ' === TABLE DETECTION ===
+ If tableIndex = 0 OrElse labelText.Contains("drn name") Then
+ Try
+ SetCell(ufSession, tabNoteTag, 0, 0, DateTime.Now.Year.ToString())
+ SetCell(ufSession, tabNoteTag, 1, 1, dr) : SetCell(ufSession, tabNoteTag, 1, 2, drDate)
+ SetCell(ufSession, tabNoteTag, 2, 1, chkd) : SetCell(ufSession, tabNoteTag, 2, 2, chkdDate)
+ SetCell(ufSession, tabNoteTag, 3, 1, appd) : SetCell(ufSession, tabNoteTag, 3, 2, appdDate)
+ SetCell(ufSession, tabNoteTag, 4, 1, scale)
+ lw.WriteLine("✅ Table 1 (Sign/Date) updated.")
+ Catch ex As Exception
+ lw.WriteLine("❌ Error in Table 1: " & ex.Message)
+ End Try
+ElseIf labelText.Contains("weld") OrElse labelText.Contains("project") Then
+ Try
+UpdateSecondTable(ufSession, tabNoteTag, weldQuality, genRoughness, projectName)
+ lw.WriteLine("✅ Table 2 (Weld/Project) updated.")
+ Catch ex As Exception
+ lw.WriteLine("❌ Error in Table 2: " & ex.Message)
+ End Try
+ElseIf labelText.Contains("material") Then
+ Try
+ UpdateThirdTable(ufSession, tabNoteTag,
+ material, finWt,
+ replacesDrg, refDrgNo
+ )
+ lw.WriteLine("✅ Third table updated.")
+ Catch ex As Exception
+ lw.WriteLine("❌ Error in third table: " & ex.Message)
+ End Try
+ End If
+ tableIndex += 1
+ Loop
+ lw.Close()
+ End Sub
+ ' === Set a Cell in a Tabular Note ===
+ Private Shared Sub SetCell(uf As UFSession, table As Tag, row As Integer, col As Integer, value As
+String)
+ Try
+ Dim rowTag As Tag = Tag.Null, colTag As Tag = Tag.Null, cellTag As Tag = Tag.Null
+ uf.Tabnot.AskNthRow(table, row, rowTag)
+ uf.Tabnot.AskNthColumn(table, col, colTag)
+ uf.Tabnot.AskCellAtRowCol(rowTag, colTag, cellTag)
+ uf.Tabnot.SetCellText(cellTag, value)
+ Catch ex As Exception
+ Dim lw As ListingWindow = Session.GetSession().ListingWindow
+ lw.WriteLine($"⚠️ Failed to update cell({row},{col}): {ex.Message}")
+ End Try
+ End Sub
+ ' === Label-Based Matching for Table 2 ===
+ Private Shared Sub UpdateSecondTable(uf As UFSession, tabNoteTag As Tag, weld As String, rough
+As String, project As String)
+ Dim lw As ListingWindow = Session.GetSession().ListingWindow
+ For rowIdx As Integer = 0 To 10
+ Try
+Dim rowTag As Tag = Tag.Null, col0Tag As Tag = Tag.Null, col1Tag As Tag = Tag.Null
+ Dim labelTag As Tag = Tag.Null, valueTag As Tag = Tag.Null
+ uf.Tabnot.AskNthRow(tabNoteTag, rowIdx, rowTag)
+ uf.Tabnot.AskNthColumn(tabNoteTag, 0, col0Tag)
+ uf.Tabnot.AskNthColumn(tabNoteTag, 1, col1Tag)
+ uf.Tabnot.AskCellAtRowCol(rowTag, col0Tag, labelTag)
+ Dim cellText As String = ""
+ uf.Tabnot.AskCellText(labelTag, cellText)
+ Dim label = cellText.Trim().ToLower()
+ If label.Contains("weld") Then
+ uf.Tabnot.AskCellAtRowCol(rowTag, col1Tag, valueTag)
+ uf.Tabnot.SetCellText(valueTag, weld)
+ ElseIf label.Contains("rough") Then
+ uf.Tabnot.AskCellAtRowCol(rowTag, col1Tag, valueTag)
+ uf.Tabnot.SetCellText(valueTag, rough)
+ ElseIf label.Contains("project") Then
+ uf.Tabnot.AskCellAtRowCol(rowTag, col1Tag, valueTag)
+ uf.Tabnot.SetCellText(valueTag, project)
+ End If
+ Catch ex As Exception
+ lw.WriteLine($"⚠️ Skipped row {rowIdx} in Table 2: {ex.Message}")
+ End Try
+ Next
+ End Sub
+' === Fixed-Position Matching for Table 3 ===
+ Private Shared Sub UpdateThirdTable(uf As UFSession, tabNoteTag As Tag,
+ material As String,
+ finWt As String,
+ replacesDrg As String,
+ refDrgNo As String)
+ Dim lw As ListingWindow = Session.GetSession().ListingWindow
+ Try
+ ' ✅ Row 1: merged (1,0) cell — store both material and spec together
+ SetCell(uf, tabNoteTag, 1, 0, material)
+ lw.WriteLine("✅ Material + SizeSpec filled in merged (1,0)")
+ SetCell(uf, tabNoteTag, 2, 1, finWt)
+ SetCell(uf, tabNoteTag, 3, 1, replacesDrg)
+ SetCell(uf, tabNoteTag, 4, 1, refDrgNo)
+ lw.WriteLine("✅ Table 3 fields updated successfully.")
+ Catch ex As Exception
+ lw.WriteLine("❌ Error updating Table 3: " & ex.Message)
+ End Try
+ End Sub
+End Class
+
+#Windows Form design code
+
+Imports System.Windows.Forms
+Imports System.Collections.Generic
+Imports NXOpen.Drawings
+Public Class TitleBlockM2Form
+ Private Sub btnOK_Click(sender As Object, e As EventArgs) Handles btnOK.Click
+ Dim result As DialogResult = MessageBox.Show("Are you sure you want to update the title block?",
+"Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question)
+ If result = DialogResult.Yes Then
+ Dim scaleValue As String = cmbScale.Text.Trim()
+ Try
+ TitleBlockM2.UpdateSignDateAndFields(
+ cmbDrn.Text.Trim(),
+ dtDrn.Value.ToString("dd-MM-yyyy"),
+ cmbChkd.Text.Trim(),
+ dtChkd.Value.ToString("dd-MM-yyyy"),
+ cmbAppd.Text.Trim(),
+ dtAppd.Value.ToString("dd-MM-yyyy"),
+ scaleValue,
+ txtWeldQ.Text,
+ txtGenR.Text,
+ cmbProject.Text.Trim(),
+ txtMaterial.Text,
+ txtFinWt.Text,
+ txtReplace.Text,
+ txtReference.Text)
+ Me.Close()
+ Catch ex As Exception
+ MessageBox.Show("Error: " & ex.Message, "Populate Title Block Error")
+ End Try
+ MessageBox.Show("Title block updated successfully.", "Success", MessageBoxButtons.OK,
+MessageBoxIcon.Information)
+ Else
+ ' Cancelled
+MessageBox.Show("❌ Operation cancelled.", "Cancelled", MessageBoxButtons.OK,
+MessageBoxIcon.Warning)
+ End If
+ End Sub
+ Private Sub NXCustomForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+ cmbScale.Items.AddRange(New String() {"1:1", "1:2", "1:5", "1:10"})
+ cmbScale.Text = " " ' default value
+ ' Common engineer names (example list)
+ Dim commonNames As String() = {"Satish Kumar", "Somya", "Sourav", "Nitin", "Raj"}
+ cmbDrn.Items.AddRange(commonNames)
+ cmbChkd.Items.AddRange(commonNames)
+ cmbAppd.Items.AddRange(commonNames)
+ ' Optional: Set defaults
+ cmbDrn.Text = "Satish Kumar"
+ cmbChkd.Text = "Satish Kumar"
+ cmbAppd.Text = "Satish Kumar"
+ cmbProject.Items.AddRange(New String() {"Exe210", "Exe2108", "Exe1329"})
+ cmbProject.Text = "Exe210"
+ End Sub
+ Private Sub btnCancel_Click(sender As Object, e As EventArgs) Handles btnCancel.Click
+ MessageBox.Show(" ❌ Operation cancelled.", "Cancelled", MessageBoxButtons.OKCancel,
+MessageBoxIcon.Warning)
+ Me.Close()
+ End Sub
+End Class
+
+#Entry Point code
+
+Imports System.Windows.Forms
+Imports NXOpen
+Module EntryPoint
+ Sub Main()
+ Dim form As New TitleBlockM2Form()
+ form.ShowDialog()
+ End Sub
+ End Module
