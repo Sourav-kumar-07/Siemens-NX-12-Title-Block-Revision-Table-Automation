@@ -1,0 +1,11 @@
+Public Class TitleBlockM2Form
+Dim result As DialogResult = MessageBox.Show("Are you sure you want to update the title block?",
+"Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question)
+MessageBox.Show("Title block updated successfully.", "Success", MessageBoxButtons.OK,
+MessageBoxIcon.Information)
+Else
+' Cancelled
+MessageBox.Show("❌ Operation cancelled.", "Cancelled", MessageBoxButtons.OK,
+MessageBoxIcon.Warning)
+End If
+End Class
