@@ -1,0 +1,42 @@
+Imports NXOpen
+Imports NXOpen.Annotations
+Imports NXOpen.Drawings
+Imports NXOpen.UI ' ✅ Important import
+Namespace NxTitleBlockEditor2
+ Public Class TitleBlockUpdater
+ Public Shared Sub Main()
+ Dim theSession As Session = Session.GetSession()
+ Dim workPart As Part = theSession.Parts.Work
+ Dim displayPart As Part = theSession.Parts.Display
+Dim ui As NXOpen.UI = NXOpen.UI.GetUI() ' ✅ Correct way to initialize UI
+ Dim markId1 As Session.UndoMarkId = theSession.SetUndoMark(Session.MarkVisibility.Visible,
+"Start")
+ Dim titleBlock1 As TitleBlock = CType(workPart.FindObject("HANDLE R-715"), TitleBlock)
+ Dim titleblocks1(0) As TitleBlock
+ titleblocks1(0) = titleBlock1
+ Dim editTitleBlockBuilder1 As EditTitleBlockBuilder =
+workPart.DraftingManager.TitleBlocks.CreateEditTitleBlockBuilder(titleblocks1)
+ Dim titleBlockCellBuilderList1 As TitleBlockCellBuilderList = editTitleBlockBuilder1.Cells
+ theSession.SetUndoMarkName(markId1, "Populate Title BlockDialog")
+ Dim labelNames As String() = {"First Issued", "Drawn By", "Checked By", "Approved By"}
+ For Each label As String In labelNames
+ Dim userValue As String = ""
+ Try
+ userValue = InputBox("Enter value for '" & label & "':", "Title Block Input")
+ If Not String.IsNullOrWhiteSpace(userValue) Then
+editTitleBlockBuilder1.SetCellValueForLabel(label,userValue)
+ End If
+ Catch ex As Exception
+ theSession.ListingWindow.Open()
+ theSession.ListingWindow.WriteLine("❌ Error getting value for '" & label & "': " &
+ex.Message)
+ End Try
+ Next
+ Dim nXObject1 As NXObject = editTitleBlockBuilder1.Commit()
+ Dim objects1() As NXObject = editTitleBlockBuilder1.GetCommittedObjects()
+ editTitleBlockBuilder1.Destroy()
+ theSession.ListingWindow.Open()
+ theSession.ListingWindow.WriteLine("✅ Title Block Populated Successfully.")
+ End Sub
+ End Class
+End Namespace
