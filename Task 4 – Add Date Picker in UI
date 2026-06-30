@@ -1,0 +1,35 @@
+Imports System.Windows.Forms
+Imports System.Collections.Generic
+Imports NXOpen
+Imports System
+Public Class NXCustomForm
+ Private Sub btnOK_Click(sender As Object, e As EventArgs) Handles btnOK.Click
+ Try
+ Dim labelValues As New Dictionary(Of String, String) From {
+ {"Drn Name", txtDrnName.Text},
+ {"Drn Date", dtpDrnDate.Value.ToString("dd-MM-yyyy")},
+ {"Chkd Name", txtChkdName.Text},
+ {"Chkd Date", dtpChkdDate.Value.ToString("dd-MM-yyyy")},
+ {"Appd Name", txtAppdName.Text},
+ {"Appd Date", dtpAppdDate.Value.ToString("dd-MM-yyyy")},
+ {"Project Name", txtProject.Text},
+ {"Material Description", txtMaterial.Text},
+ {"Drg No", txtDrgNo.Text},
+ {"Title", txtTitle.Text},
+ {"FinWt", txtFinWt.Text},
+ {"Scale", txtScale.Text}}
+ TitleBlockUpdater.UpdateTabularNoteByLabel(labelValues)
+ Me.Close()
+ Catch ex As Exception
+ MessageBox.Show("Error: " & ex.Message, "Populate Title Block Error")
+ End Try
+ End Sub
+ Private Sub btnClear_Click(sender As Object, e As EventArgs) Handles btnClear.Click
+ For Each ctrl As Control in Me.Controls
+ If TypeOf ctrl Is TextBox Then CType(ctrl, TextBox).Clear()
+ Next
+ End Sub
+ Private Sub btnCancel_Click(sender As Object, e As EventArgs) Handles btnCancel.Click
+ Me.Close()
+ End Sub
+End Class
