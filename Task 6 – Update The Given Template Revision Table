@@ -1,0 +1,131 @@
+ #Class Library code
+
+Imports NXOpen
+Imports NXOpen.UF
+Public Class EditEnc
+ Public Shared Sub UpdateRevisionTable(
+ modDate As String,
+ modText As String,
+ drnName As String,
+ chkdName As String)
+ Dim theSession As Session = Session.GetSession()
+ Dim ufSession As UFSession = UFSession.GetUFSession()
+ Dim workPart As Part = theSession.Parts.Work
+ Dim lw As ListingWindow = theSession.ListingWindow
+ lw.Open()
+ Dim tabNoteTag As Tag = Tag.Null
+ Do
+ ufSession.Obj.CycleObjsInPart(workPart.Tag, UFConstants.UF_tabular_note_type, tabNoteTag)
+ If tabNoteTag = Tag.Null Then Exit Do
+ ' Identify Revision Table by checking first cell (0,0)
+ Dim cellText As String = ""
+ Try
+ Dim headerRow As Tag = Tag.Null, headerCol As Tag = Tag.Null, headerCell As Tag =
+Tag.Null
+ ufSession.Tabnot.AskNthRow(tabNoteTag, 0, headerRow)
+ ufSession.Tabnot.AskNthColumn(tabNoteTag, 0, headerCol)
+ ufSession.Tabnot.AskCellAtRowCol(headerRow, headerCol, headerCell)
+ ufSession.Tabnot.AskCellText(headerCell, cellText)
+ Catch
+ End Try
+ ' Check if this is the Revision table
+ If cellText.ToLower().Contains("date") Then
+ Try
+ ' ✅ Always update Row 1
+ Dim row1 As Tag = Tag.Null
+ Dim colDate As Tag = Tag.Null, colDrn As Tag = Tag.Null, colChkd As Tag = Tag.Null,
+colMod As Tag = Tag.Null
+ ' Get row and column tags
+ ufSession.Tabnot.AskNthRow(tabNoteTag, 1, row1)
+ ufSession.Tabnot.AskNthColumn(tabNoteTag, 0, colDate) ' Date
+ ufSession.Tabnot.AskNthColumn(tabNoteTag, 3, colMod) ' Modification (merged)
+ ufSession.Tabnot.AskNthColumn(tabNoteTag, 4, colDrn) ' Drn.
+ ufSession.Tabnot.AskNthColumn(tabNoteTag, 5, colChkd) ' Chkd.
+ ' Get cell tags
+ Dim cellDate As Tag = Tag.Null, cellDrn As Tag = Tag.Null, cellChkd As Tag = Tag.Null,
+cellMod As Tag = Tag.Null
+ ufSession.Tabnot.AskCellAtRowCol(row1, colDate, cellDate)
+ ufSession.Tabnot.AskCellAtRowCol(row1, colDrn, cellDrn)
+ ufSession.Tabnot.AskCellAtRowCol(row1, colChkd, cellChkd)
+ ufSession.Tabnot.AskCellAtRowCol(row1, colMod, cellMod) ' ✅ merged cell handled
+ ' Set text in all cells
+ ufSession.Tabnot.SetCellText(cellDate, modDate)
+ ufSession.Tabnot.SetCellText(cellMod, modText)
+ ufSession.Tabnot.SetCellText(cellDrn, drnName)
+ ufSession.Tabnot.SetCellText(cellChkd, chkdName)
+ lw.WriteLine("✅ Row 1 updated with new revision data.")
+ Catch ex As Exception
+ lw.WriteLine("❌ Error updating revision row: " & ex.Message)
+ End Try
+ End If
+ Loop
+ lw.Close()
+ End Sub
+End Class
+
+#Windows Form Design Code
+
+Imports System.Windows.Forms
+Imports System
+Public Class EditEncForm
+ Inherits Form
+ ' Form controls
+ Private Sub EditEncForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+ dtpDate.Format = DateTimePickerFormat.Custom
+ dtpDate.CustomFormat = "dd.MM.yy"
+ cmbDrn.DropDownStyle = ComboBoxStyle.DropDown
+ cmbDrn.Items.AddRange(New String() {"Satish Kumar", "Somya", "Nitin", "Sourav"})
+ cmbDrn.Text = "Satish Kumar"
+ cmbChd.DropDownStyle = ComboBoxStyle.DropDown
+ cmbChd.Items.AddRange(New String() {"Satish Kumar", "Somya", "Nitin", "Sourav"})
+ cmbChd.Text = "Satish Kumar"
+ cmbModification.DropDownStyle = ComboBoxStyle.DropDownList
+ cmbModification.Items.AddRange(New String() {"DRG.INTRODUCTION",
+"DESIGN.INTRODUCTION", "DRG. INFORMATION"})
+ cmbModification.Text = "DRG.INTRODUCTION"
+ cmbEnc.DropDownStyle = ComboBoxStyle.DropDown
+ cmbEnc.Items.AddRange(New String() {"ENC.NO-132924", "ENC.NO-210879", "ENC.NO290625"})
+ cmbEnc.Text = "ENC.NO-132924"
+ End Sub
+ Private Sub ButtonOK_Click(sender As Object, e As EventArgs) Handles btnOK.Click
+ Dim result = MessageBox.Show("Are you sure you want to add this revision entry?", "Confirm",
+MessageBoxButtons.YesNo, MessageBoxIcon.Question)
+ If result = DialogResult.Yes Then
+ Try
+ ' 👉 1. Get date
+ Dim revDate As String = dtpDate.Value.ToString("dd.MM.yy")
+ ' 👉 2. Get modification and ENC no, combine them
+ Dim modLine As String = cmbModification.Text.Trim()
+ Dim encNo As String = cmbEnc.Text.Trim()
+ Dim modText As String = modLine & "." & encNo
+ ' 👉 3. Get names
+ Dim drnName As String = cmbDrn.Text.Trim()
+ Dim chkdName As String = cmbChd.Text.Trim()
+ ' 👉 4. Call backend
+ EditEnc.UpdateRevisionTable(revDate, modText, drnName, chkdName)
+ MessageBox.Show("✅ Revision table updated successfully.", "Success",
+MessageBoxButtons.OK, MessageBoxIcon.Information)
+ Catch ex As Exception
+ MessageBox.Show("❌ Error updating revision: " & ex.Message, "Error",
+MessageBoxButtons.OK, MessageBoxIcon.Error)
+ End Try
+ Else
+ MessageBox.Show("❌ Operation cancelled.", "Cancelled", MessageBoxButtons.OK,
+MessageBoxIcon.Warning)
+ End If
+ Me.Close()
+ End Sub
+ Private Sub ButtonCancel_Click(sender As Object, e As EventArgs) Handles btnCancel.Click
+ Me.Close()
+ End Sub
+End Class
+
+# Entry Point code
+Imports System.Windows.Forms
+Imports NXOpen
+Module EntryPoint
+ Sub Main()
+ Dim form As New TitleBlockM2Form()
+ form.ShowDialog()
+ End Sub
+ End Module
