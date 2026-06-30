@@ -1,0 +1,34 @@
+Imports System.Windows.Forms
+Public Class TitleBlockForm
+ Public Sub New()
+ InitializeComponent()
+ End Sub
+ Public Property FirstIssued As String
+ Public Property DrawnBy As String
+ Public Property CheckedBy As String
+ Public Property ApprovedBy As String
+ Private Sub btnOK_Click(sender As Object, e As EventArgs) Handles btnOK.Click
+ FirstIssued = dtpFirstIssued.Value.ToString("dd.MM.yy")
+ DrawnBy = txtDrawnBy.Text
+ CheckedBy = txtCheckedBy.Text
+ ApprovedBy = txtApprovedBy.Text
+ Me.DialogResult = DialogResult.OK
+ Me.Close()
+ End Sub
+ Private Sub btnClearIssued_Click(sender As Object, e As EventArgs) Handles btnClearIssued.Click
+ txtFirstIssued.Clear()
+ End Sub
+ Private Sub btnClearDrawn_Click(sender As Object, e As EventArgs) Handles btnClearDrawn.Click
+ txtDrawnBy.Clear()
+ End Sub
+ Private Sub btnClearChecked_Click(sender As Object, e As EventArgs) Handles btnClearChecked.Click
+ txtCheckedBy.Clear()
+ End Sub
+ Private Sub btnClearApproved_Click(sender As Object, e As EventArgs) Handles
+btnClearApproved.Click
+ txtApprovedBy.Clear()
+ End Sub
+ Private Sub TitleBlockForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+ dtpFirstIssued.Value = DateTime.Today
+ End Sub
+End Class
